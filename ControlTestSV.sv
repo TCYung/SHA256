@@ -20,7 +20,7 @@ reg [31:0] k [0:63];
 reg [31:0] bitcoin_version = 32'h3fff0000;
 reg [255:0] previous_hash = 256'h00000000000000000000a94278b1c645a52dfc46bf6f985010f5626093b0eb9f; //this is the hash of block 923947
 reg [255:0] merkle_root = 256'h8d6f9f82908f4e916af2eb57010de762f46ea5923374898033b0599acf6c8bc0;
-reg [31:0] timestamp = 32'h691A4FB4; //1763332020 or 11/16/25 5:27pm
+reg [31:0] timestamp = 32'h691a4fb4; //1763332020 or 11/16/25 5:27pm
 reg [31:0] difficulty = 32'h1701d936;
 reg [31:0] nonce = 32'h7481a217; // 1954652695 in decimal
 reg [63:0] length_bits = {bitcoin_version, previous_hash, merkle_root, timestamp, difficulty, nonce} >> 32; //this will be the modulo (right shift 32 times of the original block header)
@@ -148,18 +148,17 @@ always_ff @(posedge clk) begin
         
 		idle_state: begin
 			//this will be needed in the future when i process header after header
+
+            //moved the below line into the chunk1 assignment so that it happens in the same clock cycle (its already assigned as part of the register declaration so something can be changed in the future)
 			//length_bits <= {bitcoin_version, previous_hash, merkle_root, timestamp, difficulty, nonce} >> 32; //modulo 2^32 of the 80 byte block header
 
-			//chunk1 <= {bitcoin_version, previous_hash, merkle_root[255:32]};
-			//chunk2 <= {merkle_root[31:0], timestamp, difficulty, nonce, 1'b1, 319'b0, length_bits};
+			chunk1 <= {bitcoin_version, previous_hash, merkle_root[255:32]};
+			chunk2 <= {merkle_root[31:0], timestamp, difficulty, nonce, 1'b1, 319'b0, 64'd640};
 
             
             //testing 
-            chunk1 <= {96'b10100100110010101100100010000100110110001101111011000110110101101000010011011000111010101100101, 1'b1, 351'b0, 64'd96};
-            chunk2 <= 512'h0;
-
-            // chunk1 <= 512'h0;
-            // chunk2 <= 512'h0;
+            //chunk1 <= {96'b10100100110010101100100010000100110110001101111011000110110101101000010011011000111010101100101, 1'b1, 351'b0, 64'd96};
+            //chunk2 <= 512'h0;
 
             loop1 <= loop1_start;
         end
@@ -266,7 +265,7 @@ always_ff @(posedge clk) begin
                 h_temp <= h7;
 
                 main_loop <= 0;
-
+                    
 				loop1 <= main_loop_chunk2;
             end
 
@@ -278,11 +277,11 @@ always_ff @(posedge clk) begin
 
                     main_loop_variables: begin
                         //main loop
-                        s1 = ({e_temp[5:0], e_temp[31:6]}) ^ ({e_temp[10:0], e_temp[31:11]}) ^ ({e_temp[24:0], e_temp[31:25]}); //right rotate 6, right rotate 11, right rotate 25
-                        ch = (e_temp & f_temp) ^ (~e_temp & g_temp);
+                        s1 <= ({e_temp[5:0], e_temp[31:6]}) ^ ({e_temp[10:0], e_temp[31:11]}) ^ ({e_temp[24:0], e_temp[31:25]}); //right rotate 6, right rotate 11, right rotate 25
+                        ch <= (e_temp & f_temp) ^ (~e_temp & g_temp);
 
-                        s0 = ({a_temp[1:0], a_temp[31:2]}) ^ ({a_temp[12:0], a_temp[31:13]}) ^ ({a_temp[21:0], a_temp[31:22]}); //right rotate 2, right rotate 13, right rotate 22
-                        maj = (a_temp & b_temp) ^ (a_temp & c_temp) ^ (b_temp & c_temp);
+                        s0 <= ({a_temp[1:0], a_temp[31:2]}) ^ ({a_temp[12:0], a_temp[31:13]}) ^ ({a_temp[21:0], a_temp[31:22]}); //right rotate 2, right rotate 13, right rotate 22
+                        maj <= (a_temp & b_temp) ^ (a_temp & c_temp) ^ (b_temp & c_temp);
 
                         main_loop_case <= main_loop_temp;
                     end
@@ -331,26 +330,53 @@ always_ff @(posedge clk) begin
 
 				loop1 <= main_loops_complete;
 			end
-			
-			if (main_loop2 !== 64) begin
-			    main_loop2 <= main_loop2 + 1;
+            
+            if (main_loop2 !== 64) begin //splitting this into 3 solved my issues but it looks like from the github example one of these can be changed to combinatorial logic
+
+                case (main_loop_case)
+                    default: begin
+                        main_loop_case <= main_loop_variables;
+                    end
+
+                    main_loop_variables: begin
+                        //main loop
+                        s1 <= ({e_temp[5:0], e_temp[31:6]}) ^ ({e_temp[10:0], e_temp[31:11]}) ^ ({e_temp[24:0], e_temp[31:25]}); //right rotate 6, right rotate 11, right rotate 25
+                        ch <= (e_temp & f_temp) ^ (~e_temp & g_temp);
+
+                        s0 <= ({a_temp[1:0], a_temp[31:2]}) ^ ({a_temp[12:0], a_temp[31:13]}) ^ ({a_temp[21:0], a_temp[31:22]}); //right rotate 2, right rotate 13, right rotate 22
+                        maj <= (a_temp & b_temp) ^ (a_temp & c_temp) ^ (b_temp & c_temp);
+
+                        main_loop_case <= main_loop_temp;
+                    end
+
+                    main_loop_temp: begin     
+
+                        temp1 <= h_temp + s1 + ch + k[main_loop2] + w_chunk2[main_loop2]; //only difference between chunk 1 and 2 should be the w variable                
+                        temp2 <= s0 + maj;	
+                        
+                        main_loop_case <= main_loop_assign;
+                    end
                     
-                temp1 <= h_temp + s1 + ch + k[main_loop2] + w_chunk2[main_loop2]; //only difference between chunk 1 and 2 should be the w variable
-                temp2 <= s0 + maj;
-                
-                if (main_loop2 > 0) begin            
-                    h_temp <= g_temp;
-                    g_temp <= f_temp;
-                    f_temp <= e_temp;
-                    e_temp <= d_temp + temp1;
-                    d_temp <= c_temp;
-                    c_temp <= b_temp;
-                    b_temp <= a_temp;
-                    a_temp <= temp1 + temp2;	
-                    
-                    loop1 <= main_loop_chunk2;
-                end
-			end
+                    main_loop_assign: begin
+                        h_temp <= g_temp;
+                        g_temp <= f_temp;
+                        f_temp <= e_temp;
+                        e_temp <= d_temp + temp1;
+                        d_temp <= c_temp;
+                        c_temp <= b_temp;
+                        b_temp <= a_temp;
+                        a_temp <= temp1 + temp2;
+
+                        main_loop2 <= main_loop2 + 1;
+
+                        main_loop_case <= main_loop_variables;
+                    end
+
+                endcase
+
+                loop1 <= main_loop_chunk2;
+
+            end                
         end
 		
 		main_loops_complete: begin
