@@ -17,8 +17,6 @@ module Bitcoin_SHA256
     output reg [255:0] hash = 256'd0
 );
 
-//there seems to be a bunch of arbitrary variables as well as math operations, is there any way to understand the purpose of all the operations?
-
 reg [31:0] h0 = 32'h6a09e667;
 reg [31:0] h1 = 32'hbb67ae85;
 reg [31:0] h2 = 32'h3c6ef372;
@@ -38,9 +36,8 @@ reg [255:0] merkle_root = {<<byte {256'h8d6f9f82908f4e916af2eb57010de762f46ea592
 reg [31:0] timestamp = {<<byte {32'h691A4FD1}}; //1763332049 or 11/16/25 5:27:29 pm 
 reg [31:0] difficulty = {<<byte {32'h1701d936}};
 reg [31:0] nonce = {<<byte {32'h7481a217}}; // 1954652695 in decimal
-reg [63:0] length_bits = 64'd640; //this will be the modulo (right shift 32 times of the original block header)
+reg [63:0] length_bits = 64'd640; //640 is the length of the bitcoin block header
 
-//i thought that you would be able to parallelize and compute both chunks at the same time but the values for chunk 2 depend on the output of chunk 1
 reg [511:0] chunk1;
 reg [511:0] chunk2;
 
@@ -119,7 +116,7 @@ reg [31:0] w_chunk2 [0:63];
 
 reg [8:0] main_loop = 0;
 reg [8:0] main_loop2 = 0;
-reg [8:0] loop_val = 16;
+reg [8:0] loop_counter = 16;
 
 //for chunk 1
 reg [31:0] s0_1; 
@@ -131,27 +128,27 @@ reg [31:0] s1_2;
 
 reg [31:0] s1, ch, temp1, s0, maj, temp2; //temporary variables named according to sha2 wiki main loop
 
-reg [7:0] loop1;
-parameter idle_state = 8'b0000001; //pick binary value
-parameter loop1_start = 8'b0000010; 
-parameter loop1_end = 8'b0000011;
+reg [7:0] state;
+parameter idle_state = 8'b0000001; 
+parameter w_chunk_initial = 8'b0000010; 
+parameter w_chunk_extend = 8'b0000011;
 parameter main_loop_chunk1 = 8'b0000100;
 parameter main_loop_chunk2 = 8'b0000101;
 parameter main_loops_complete = 8'b0000110;
 
-reg [7:0] main_loop_case;
+reg [7:0] main_loop_state;
 parameter main_loop_variables = 8'b0000111;
 parameter main_loop_temp = 8'b0001000;
 parameter main_loop_assign = 8'b0001001;
 
 always_comb begin
-    //loop1_end chunk 1 and chunk 2
-    s0_1 = ({w_chunk1[loop_val-15][6:0], w_chunk1[loop_val-15][31:7]}) ^ ({w_chunk1[loop_val-15][17:0], w_chunk1[loop_val-15][31:18]}) ^ (w_chunk1[loop_val-15] >> 3); //right rotate 7, right rotate 18, right shift 3
-    s1_1 = ({w_chunk1[loop_val-2][16:0], w_chunk1[loop_val-2][31:17]}) ^ ({w_chunk1[loop_val-2][18:0], w_chunk1[loop_val-2][31:19]}) ^ (w_chunk1[loop_val-2] >> 10); //right rotate 17, right rotate 19, right shift 10
+    //w_chunk_extend chunk 1 and chunk 2
+    s0_1 = ({w_chunk1[loop_counter-15][6:0], w_chunk1[loop_counter-15][31:7]}) ^ ({w_chunk1[loop_counter-15][17:0], w_chunk1[loop_counter-15][31:18]}) ^ (w_chunk1[loop_counter-15] >> 3); //right rotate 7, right rotate 18, right shift 3
+    s1_1 = ({w_chunk1[loop_counter-2][16:0], w_chunk1[loop_counter-2][31:17]}) ^ ({w_chunk1[loop_counter-2][18:0], w_chunk1[loop_counter-2][31:19]}) ^ (w_chunk1[loop_counter-2] >> 10); //right rotate 17, right rotate 19, right shift 10
 
     if (!second_hash) begin
-        s0_2 = ({w_chunk2[loop_val-15][6:0], w_chunk2[loop_val-15][31:7]}) ^ ({w_chunk2[loop_val-15][17:0], w_chunk2[loop_val-15][31:18]}) ^ (w_chunk2[loop_val-15] >> 3); //right rotate 7, right rotate 18, right shift 3
-        s1_2 = ({w_chunk2[loop_val-2][16:0], w_chunk2[loop_val-2][31:17]}) ^ ({w_chunk2[loop_val-2][18:0], w_chunk2[loop_val-2][31:19]}) ^ (w_chunk2[loop_val-2] >> 10); //right rotate 17, right rotate 19, right shift 10
+        s0_2 = ({w_chunk2[loop_counter-15][6:0], w_chunk2[loop_counter-15][31:7]}) ^ ({w_chunk2[loop_counter-15][17:0], w_chunk2[loop_counter-15][31:18]}) ^ (w_chunk2[loop_counter-15] >> 3); //right rotate 7, right rotate 18, right shift 3
+        s1_2 = ({w_chunk2[loop_counter-2][16:0], w_chunk2[loop_counter-2][31:17]}) ^ ({w_chunk2[loop_counter-2][18:0], w_chunk2[loop_counter-2][31:19]}) ^ (w_chunk2[loop_counter-2] >> 10); //right rotate 17, right rotate 19, right shift 10
     end
 
     else begin
@@ -162,42 +159,36 @@ always_comb begin
 end
 
 always_ff @(posedge clk) begin 
-	case(loop1)
+	case(state)
 	
         default: begin
-           loop1 <= idle_state;
+           state <= idle_state;
         end
         
 		idle_state: begin
-			//this will be needed in the future when i process header after header
-
-            //moved the below line into the chunk1 assignment so that it happens in the same clock cycle (its already assigned as part of the register declaration so something can be changed in the future)
-			//length_bits <= {bitcoin_version, previous_hash, merkle_root, timestamp, difficulty, nonce} >> 32; //modulo 2^32 of the 80 byte block header
             if (!second_hash) begin
 			    chunk1 <= {bitcoin_version, previous_hash, merkle_root[255:32]};
 			    chunk2 <= {merkle_root[31:0], timestamp, difficulty, nonce, 1'b1, 319'b0, length_bits};
-                loop1 <= loop1_start;
+                state <= w_chunk_initial;
             end
             
             if (second_hash && hash_status == 1 && input_hash !== 0) begin
                 chunk1 <= {input_hash, 1'b1, 191'b0, 64'd256};
-                loop1 <= loop1_start;
-            end
-
-            
+                state <= w_chunk_initial;
+            end            
         end
              
-		loop1_start: begin
+		w_chunk_initial: begin
 			w_chunk1[0] <= chunk1[511 - 0*32 : 480 - 0*32];		//[512 : 480]
 			w_chunk1[1] <= chunk1[511 - 1*32 : 480 - 1*32];		//[479 : 448]
 			w_chunk1[2] <= chunk1[511 - 2*32 : 480 - 2*32];		//[447 : 416]
-			w_chunk1[3]  <= chunk1[511 - 3*32 : 480 - 3*32];		//[415 : 384]
-			w_chunk1[4]  <= chunk1[511 - 4*32 : 480 - 4*32];		//[383 : 352]
-			w_chunk1[5]  <= chunk1[511 - 5*32 : 480 - 5*32];		//[351 : 320]
-			w_chunk1[6]  <= chunk1[511 - 6*32 : 480 - 6*32];		//[319 : 288]
-			w_chunk1[7]  <= chunk1[511 - 7*32 : 480 - 7*32];		//[287 : 256]
-			w_chunk1[8]  <= chunk1[511 - 8*32 : 480 - 8*32];		//[255 : 224]
-			w_chunk1[9]  <= chunk1[511 - 9*32 : 480 - 9*32];		//[223 : 192]
+			w_chunk1[3]  <= chunk1[511 - 3*32 : 480 - 3*32];	//[415 : 384]
+			w_chunk1[4]  <= chunk1[511 - 4*32 : 480 - 4*32];	//[383 : 352]
+			w_chunk1[5]  <= chunk1[511 - 5*32 : 480 - 5*32];	//[351 : 320]
+			w_chunk1[6]  <= chunk1[511 - 6*32 : 480 - 6*32];	//[319 : 288]
+			w_chunk1[7]  <= chunk1[511 - 7*32 : 480 - 7*32];	//[287 : 256]
+			w_chunk1[8]  <= chunk1[511 - 8*32 : 480 - 8*32];	//[255 : 224]
+			w_chunk1[9]  <= chunk1[511 - 9*32 : 480 - 9*32];	//[223 : 192]
 			w_chunk1[10] <= chunk1[511 - 10*32: 480 - 10*32];	//[191 : 160]
 			w_chunk1[11] <= chunk1[511 - 11*32: 480 - 11*32];	//[159 : 128]
 			w_chunk1[12] <= chunk1[511 - 12*32: 480 - 12*32];	//[127 : 96]
@@ -207,15 +198,15 @@ always_ff @(posedge clk) begin
 
             if (!second_hash) begin
                 w_chunk2[0] <= chunk2[511 - 0*32 : 480 - 0*32];		//[512 : 480]
-                w_chunk2[1]  <= chunk2[511 - 1*32 : 480 - 1*32];		//[479 : 448]
-                w_chunk2[2]  <= chunk2[511 - 2*32 : 480 - 2*32];		//[447 : 416]
-                w_chunk2[3]  <= chunk2[511 - 3*32 : 480 - 3*32];		//[415 : 384]
-                w_chunk2[4]  <= chunk2[511 - 4*32 : 480 - 4*32];		//[383 : 352]
-                w_chunk2[5]  <= chunk2[511 - 5*32 : 480 - 5*32];		//[351 : 320]
-                w_chunk2[6]  <= chunk2[511 - 6*32 : 480 - 6*32];		//[319 : 288]
-                w_chunk2[7]  <= chunk2[511 - 7*32 : 480 - 7*32];		//[287 : 256]
-                w_chunk2[8]  <= chunk2[511 - 8*32 : 480 - 8*32];		//[255 : 224]
-                w_chunk2[9]  <= chunk2[511 - 9*32 : 480 - 9*32];		//[223 : 192]
+                w_chunk2[1]  <= chunk2[511 - 1*32 : 480 - 1*32];	//[479 : 448]
+                w_chunk2[2]  <= chunk2[511 - 2*32 : 480 - 2*32];	//[447 : 416]
+                w_chunk2[3]  <= chunk2[511 - 3*32 : 480 - 3*32];	//[415 : 384]
+                w_chunk2[4]  <= chunk2[511 - 4*32 : 480 - 4*32];	//[383 : 352]
+                w_chunk2[5]  <= chunk2[511 - 5*32 : 480 - 5*32];	//[351 : 320]
+                w_chunk2[6]  <= chunk2[511 - 6*32 : 480 - 6*32];	//[319 : 288]
+                w_chunk2[7]  <= chunk2[511 - 7*32 : 480 - 7*32];	//[287 : 256]
+                w_chunk2[8]  <= chunk2[511 - 8*32 : 480 - 8*32];	//[255 : 224]
+                w_chunk2[9]  <= chunk2[511 - 9*32 : 480 - 9*32];	//[223 : 192]
                 w_chunk2[10] <= chunk2[511 - 10*32: 480 - 10*32];	//[191 : 160]
                 w_chunk2[11] <= chunk2[511 - 11*32: 480 - 11*32];	//[159 : 128]
                 w_chunk2[12] <= chunk2[511 - 12*32: 480 - 12*32];	//[127 : 96]
@@ -224,16 +215,13 @@ always_ff @(posedge clk) begin
                 w_chunk2[15] <= chunk2[511 - 15*32: 480 - 15*32];	//[31  : 0]
             end
 			
-			loop1 <= loop1_end;
+			state <= w_chunk_extend;
         end
 
-		loop1_end: begin
-			//this should be the extension from 16 to 63 (see if you can use systemverilog)
-            //chunk 1 and chunk 2 should be able to be processed at the same time here			
+		w_chunk_extend: begin            	
 
 			//this would save a clock cycle since putting it in the main_loop section would mean you need to wait a cycle
-
-            if (loop_val == 64) begin 
+            if (loop_counter == 64) begin 
                 a_temp <= h0;
                 b_temp <= h1;
                 c_temp <= h2;
@@ -243,27 +231,28 @@ always_ff @(posedge clk) begin
                 g_temp <= h6;
                 h_temp <= h7;
                 
-                loop_val <= 16;
+                loop_counter <= 16;
 
-                loop1 <= main_loop_chunk1;
+                state <= main_loop_chunk1;
             end
             
-            if (loop_val !== 64) begin 
-                loop_val <= loop_val + 1;
-                //chunk 1
+            if (loop_counter !== 64) begin 
+                loop_counter <= loop_counter + 1;
                 
-                w_chunk1[loop_val] <= w_chunk1[loop_val-16] + s0_1 + w_chunk1[loop_val-7] + s1_1; 
+                //chunk 1                
+                w_chunk1[loop_counter] <= w_chunk1[loop_counter-16] + s0_1 + w_chunk1[loop_counter-7] + s1_1; 
                 
                 //chunk 2
                 if (!second_hash) begin
-                    w_chunk2[loop_val] <= w_chunk2[loop_val-16] + s0_2 + w_chunk2[loop_val-7] + s1_2;
+                    w_chunk2[loop_counter] <= w_chunk2[loop_counter-16] + s0_2 + w_chunk2[loop_counter-7] + s1_2;
                 end
 
-                loop1 <= loop1_end;
+                state <= w_chunk_extend;
                 
             end
         end
 
+        //can i group chunk 1 and chunk 2 into 1 case statement to reduce the amount of code
 		main_loop_chunk1: begin
 			if (main_loop == 64) begin
 				h0 <= h0 + a_temp;
@@ -277,8 +266,7 @@ always_ff @(posedge clk) begin
 
                 main_loop <= main_loop + 1; 
 
-                loop1 <= main_loop_chunk1;
-                
+                state <= main_loop_chunk1;                
 			end
 
             if (main_loop == 65 && !second_hash) begin
@@ -293,19 +281,19 @@ always_ff @(posedge clk) begin
 
                 main_loop <= 0;
                     
-				loop1 <= main_loop_chunk2;
+				state <= main_loop_chunk2;
             end
 
             if (main_loop == 65 && second_hash) begin
                 main_loop <= 0;
                     
-				loop1 <= main_loops_complete;
+				state <= main_loops_complete;
             end
 
             if (main_loop !== 64 && main_loop !== 65) begin //splitting this into 3 solved my issues but it looks like from the github example one of these can be changed to combinatorial logic
-                case (main_loop_case)
+                case (main_loop_state)
                     default: begin
-                        main_loop_case <= main_loop_variables;
+                        main_loop_state <= main_loop_variables;
                     end
 
                     main_loop_variables: begin
@@ -316,7 +304,7 @@ always_ff @(posedge clk) begin
                         s0 <= ({a_temp[1:0], a_temp[31:2]}) ^ ({a_temp[12:0], a_temp[31:13]}) ^ ({a_temp[21:0], a_temp[31:22]}); //right rotate 2, right rotate 13, right rotate 22
                         maj <= (a_temp & b_temp) ^ (a_temp & c_temp) ^ (b_temp & c_temp);
 
-                        main_loop_case <= main_loop_temp;
+                        main_loop_state <= main_loop_temp;
                     end
 
                     main_loop_temp: begin     
@@ -324,7 +312,7 @@ always_ff @(posedge clk) begin
                         temp1 <= h_temp + s1 + ch + k[main_loop] + w_chunk1[main_loop]; //only difference between chunk 1 and 2 should be the w variable                
                         temp2 <= s0 + maj;	
                         
-                        main_loop_case <= main_loop_assign;
+                        main_loop_state <= main_loop_assign;
                     end
                     
                     main_loop_assign: begin
@@ -339,12 +327,11 @@ always_ff @(posedge clk) begin
 
                         main_loop <= main_loop + 1;
 
-                        main_loop_case <= main_loop_variables;
+                        main_loop_state <= main_loop_variables;
                     end
-
                 endcase
 
-                loop1 <= main_loop_chunk1;
+                state <= main_loop_chunk1;
             end
         end
 
@@ -361,14 +348,14 @@ always_ff @(posedge clk) begin
 				
                 main_loop2 <= 0;
 
-				loop1 <= main_loops_complete;
+				state <= main_loops_complete;
 			end
             
             if (main_loop2 !== 64) begin //splitting this into 3 solved my issues but it looks like from the github example one of these can be changed to combinatorial logic
 
-                case (main_loop_case)
+                case (main_loop_state)
                     default: begin
-                        main_loop_case <= main_loop_variables;
+                        main_loop_state <= main_loop_variables;
                     end
 
                     main_loop_variables: begin
@@ -379,7 +366,7 @@ always_ff @(posedge clk) begin
                         s0 <= ({a_temp[1:0], a_temp[31:2]}) ^ ({a_temp[12:0], a_temp[31:13]}) ^ ({a_temp[21:0], a_temp[31:22]}); //right rotate 2, right rotate 13, right rotate 22
                         maj <= (a_temp & b_temp) ^ (a_temp & c_temp) ^ (b_temp & c_temp);
 
-                        main_loop_case <= main_loop_temp;
+                        main_loop_state <= main_loop_temp;
                     end
 
                     main_loop_temp: begin     
@@ -387,7 +374,7 @@ always_ff @(posedge clk) begin
                         temp1 <= h_temp + s1 + ch + k[main_loop2] + w_chunk2[main_loop2]; //only difference between chunk 1 and 2 should be the w variable                
                         temp2 <= s0 + maj;	
                         
-                        main_loop_case <= main_loop_assign;
+                        main_loop_state <= main_loop_assign;
                     end
                     
                     main_loop_assign: begin
@@ -402,13 +389,11 @@ always_ff @(posedge clk) begin
 
                         main_loop2 <= main_loop2 + 1;
 
-                        main_loop_case <= main_loop_variables;
+                        main_loop_state <= main_loop_variables;
                     end
 
                 endcase
-
-                loop1 <= main_loop_chunk2;
-
+                state <= main_loop_chunk2;
             end                
         end
 		
@@ -421,7 +406,7 @@ always_ff @(posedge clk) begin
             end
 
             else begin
-                loop1 <= idle_state;
+                state <= idle_state;
             end
             
         end
