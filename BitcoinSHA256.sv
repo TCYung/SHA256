@@ -10,9 +10,16 @@
 
 module Bitcoin_SHA256
 (   input clk,
+    input rst,
+
     input second_hash, //0 means that its a 640 bit input, 1 means 256 bit input
     input [255:0] input_hash,
-    input reg hash_status,
+
+    input [255:0] hash_target, //the resultant hash needs to be less than this value
+
+    input [31:0] nonce, //from top module this value gets changed every time the end hash is not correct
+
+    input hash_status,
     output reg hash_complete,
     output reg [255:0] hash = 256'd0
 );
@@ -35,7 +42,9 @@ reg [255:0] previous_hash = {<<byte {256'h00000000000000000000a94278b1c645a52dfc
 reg [255:0] merkle_root = {<<byte {256'h8d6f9f82908f4e916af2eb57010de762f46ea5923374898033b0599acf6c8bc0}};
 reg [31:0] timestamp = {<<byte {32'h691A4FD1}}; //1763332049 or 11/16/25 5:27:29 pm 
 reg [31:0] difficulty = {<<byte {32'h1701d936}};
-reg [31:0] nonce = {<<byte {32'h7481a217}}; // 1954652695 in decimal
+
+//reg [31:0] nonce = {<<byte {32'h7481a217}}; // 1954652695 in decimal
+
 reg [63:0] length_bits = 64'd640; //640 is the length of the bitcoin block header
 
 reg [511:0] chunk1;
@@ -158,200 +167,213 @@ always_comb begin
 end
 
 always_ff @(posedge clk) begin 
-	case(state)
-	
-        default: begin
-           state <= idle_state;
-        end
+    if (rst) begin
+        h0 = 32'h6a09e667;
+        h1 = 32'hbb67ae85;
+        h2 = 32'h3c6ef372;
+        h3 = 32'ha54ff53a;
+        h4 = 32'h510e527f;
+        h5 = 32'h9b05688c;
+        h6 = 32'h1f83d9ab;
+        h7 = 32'h5be0cd19;
         
-		idle_state: begin
-            if (!second_hash) begin
-			    chunk1 <= {bitcoin_version, previous_hash, merkle_root[255:32]};
-			    chunk2 <= {merkle_root[31:0], timestamp, difficulty, nonce, 1'b1, 319'b0, length_bits};
-                state <= w_chunk_initial;
+        hash_complete <= 0;
+        state <= idle_state;
+    end
+    else begin
+        case(state)	
+            default: begin
+            state <= idle_state;
             end
             
-            if (second_hash && hash_status == 1 && input_hash !== 0) begin
-                chunk1 <= {input_hash, 1'b1, 191'b0, 64'd256};
-                state <= w_chunk_initial;
-            end            
-        end
-             
-		w_chunk_initial: begin
-			w_chunk1[0] <= chunk1[511 - 0*32 : 480 - 0*32];		//[512 : 480]
-			w_chunk1[1] <= chunk1[511 - 1*32 : 480 - 1*32];		//[479 : 448]
-			w_chunk1[2] <= chunk1[511 - 2*32 : 480 - 2*32];		//[447 : 416]
-			w_chunk1[3]  <= chunk1[511 - 3*32 : 480 - 3*32];	//[415 : 384]
-			w_chunk1[4]  <= chunk1[511 - 4*32 : 480 - 4*32];	//[383 : 352]
-			w_chunk1[5]  <= chunk1[511 - 5*32 : 480 - 5*32];	//[351 : 320]
-			w_chunk1[6]  <= chunk1[511 - 6*32 : 480 - 6*32];	//[319 : 288]
-			w_chunk1[7]  <= chunk1[511 - 7*32 : 480 - 7*32];	//[287 : 256]
-			w_chunk1[8]  <= chunk1[511 - 8*32 : 480 - 8*32];	//[255 : 224]
-			w_chunk1[9]  <= chunk1[511 - 9*32 : 480 - 9*32];	//[223 : 192]
-			w_chunk1[10] <= chunk1[511 - 10*32: 480 - 10*32];	//[191 : 160]
-			w_chunk1[11] <= chunk1[511 - 11*32: 480 - 11*32];	//[159 : 128]
-			w_chunk1[12] <= chunk1[511 - 12*32: 480 - 12*32];	//[127 : 96]
-			w_chunk1[13] <= chunk1[511 - 13*32: 480 - 13*32];	//[95  : 64]
-			w_chunk1[14] <= chunk1[511 - 14*32: 480 - 14*32];	//[63  : 32]
-			w_chunk1[15] <= chunk1[511 - 15*32: 480 - 15*32];	//[31  : 0]
-
-            if (!second_hash) begin
-                w_chunk2[0] <= chunk2[511 - 0*32 : 480 - 0*32];		//[512 : 480]
-                w_chunk2[1]  <= chunk2[511 - 1*32 : 480 - 1*32];	//[479 : 448]
-                w_chunk2[2]  <= chunk2[511 - 2*32 : 480 - 2*32];	//[447 : 416]
-                w_chunk2[3]  <= chunk2[511 - 3*32 : 480 - 3*32];	//[415 : 384]
-                w_chunk2[4]  <= chunk2[511 - 4*32 : 480 - 4*32];	//[383 : 352]
-                w_chunk2[5]  <= chunk2[511 - 5*32 : 480 - 5*32];	//[351 : 320]
-                w_chunk2[6]  <= chunk2[511 - 6*32 : 480 - 6*32];	//[319 : 288]
-                w_chunk2[7]  <= chunk2[511 - 7*32 : 480 - 7*32];	//[287 : 256]
-                w_chunk2[8]  <= chunk2[511 - 8*32 : 480 - 8*32];	//[255 : 224]
-                w_chunk2[9]  <= chunk2[511 - 9*32 : 480 - 9*32];	//[223 : 192]
-                w_chunk2[10] <= chunk2[511 - 10*32: 480 - 10*32];	//[191 : 160]
-                w_chunk2[11] <= chunk2[511 - 11*32: 480 - 11*32];	//[159 : 128]
-                w_chunk2[12] <= chunk2[511 - 12*32: 480 - 12*32];	//[127 : 96]
-                w_chunk2[13] <= chunk2[511 - 13*32: 480 - 13*32];	//[95  : 64]
-                w_chunk2[14] <= chunk2[511 - 14*32: 480 - 14*32];	//[63  : 32]
-                w_chunk2[15] <= chunk2[511 - 15*32: 480 - 15*32];	//[31  : 0]
-            end
-			
-			state <= w_chunk_extend;
-        end
-
-		w_chunk_extend: begin            	
-
-			//this would save a clock cycle since putting it in the main_loop_counter section would mean you need to wait a cycle
-            if (extend_counter == 64) begin 
-                a_temp <= h0;
-                b_temp <= h1;
-                c_temp <= h2;
-                d_temp <= h3;
-                e_temp <= h4;
-                f_temp <= h5;
-                g_temp <= h6;
-                h_temp <= h7;
-                
-                extend_counter <= 16;
-
-                state <= main_loop_chunks;
-            end
-            
-            if (extend_counter !== 64) begin 
-                extend_counter <= extend_counter + 1;
-                
-                //chunk 1                
-                w_chunk1[extend_counter] <= w_chunk1[extend_counter-16] + s0_1 + w_chunk1[extend_counter-7] + s1_1; 
-                
-                //chunk 2
+            idle_state: begin
                 if (!second_hash) begin
-                    w_chunk2[extend_counter] <= w_chunk2[extend_counter-16] + s0_2 + w_chunk2[extend_counter-7] + s1_2;
+                    chunk1 <= {bitcoin_version, previous_hash, merkle_root[255:32]};
+                    chunk2 <= {merkle_root[31:0], timestamp, difficulty, nonce, 1'b1, 319'b0, length_bits};
+                    state <= w_chunk_initial;
                 end
+                
+                if (second_hash && hash_status == 1 && input_hash !== 0) begin //hash status means that the first hash has finished
+                    chunk1 <= {input_hash, 1'b1, 191'b0, 64'd256};
+                    state <= w_chunk_initial;
+                end            
+            end
+                
+            w_chunk_initial: begin
+                w_chunk1[0] <= chunk1[511 - 0*32 : 480 - 0*32];		//[512 : 480]
+                w_chunk1[1] <= chunk1[511 - 1*32 : 480 - 1*32];		//[479 : 448]
+                w_chunk1[2] <= chunk1[511 - 2*32 : 480 - 2*32];		//[447 : 416]
+                w_chunk1[3]  <= chunk1[511 - 3*32 : 480 - 3*32];	//[415 : 384]
+                w_chunk1[4]  <= chunk1[511 - 4*32 : 480 - 4*32];	//[383 : 352]
+                w_chunk1[5]  <= chunk1[511 - 5*32 : 480 - 5*32];	//[351 : 320]
+                w_chunk1[6]  <= chunk1[511 - 6*32 : 480 - 6*32];	//[319 : 288]
+                w_chunk1[7]  <= chunk1[511 - 7*32 : 480 - 7*32];	//[287 : 256]
+                w_chunk1[8]  <= chunk1[511 - 8*32 : 480 - 8*32];	//[255 : 224]
+                w_chunk1[9]  <= chunk1[511 - 9*32 : 480 - 9*32];	//[223 : 192]
+                w_chunk1[10] <= chunk1[511 - 10*32: 480 - 10*32];	//[191 : 160]
+                w_chunk1[11] <= chunk1[511 - 11*32: 480 - 11*32];	//[159 : 128]
+                w_chunk1[12] <= chunk1[511 - 12*32: 480 - 12*32];	//[127 : 96]
+                w_chunk1[13] <= chunk1[511 - 13*32: 480 - 13*32];	//[95  : 64]
+                w_chunk1[14] <= chunk1[511 - 14*32: 480 - 14*32];	//[63  : 32]
+                w_chunk1[15] <= chunk1[511 - 15*32: 480 - 15*32];	//[31  : 0]
 
+                if (!second_hash) begin
+                    w_chunk2[0] <= chunk2[511 - 0*32 : 480 - 0*32];		//[512 : 480]
+                    w_chunk2[1]  <= chunk2[511 - 1*32 : 480 - 1*32];	//[479 : 448]
+                    w_chunk2[2]  <= chunk2[511 - 2*32 : 480 - 2*32];	//[447 : 416]
+                    w_chunk2[3]  <= chunk2[511 - 3*32 : 480 - 3*32];	//[415 : 384]
+                    w_chunk2[4]  <= chunk2[511 - 4*32 : 480 - 4*32];	//[383 : 352]
+                    w_chunk2[5]  <= chunk2[511 - 5*32 : 480 - 5*32];	//[351 : 320]
+                    w_chunk2[6]  <= chunk2[511 - 6*32 : 480 - 6*32];	//[319 : 288]
+                    w_chunk2[7]  <= chunk2[511 - 7*32 : 480 - 7*32];	//[287 : 256]
+                    w_chunk2[8]  <= chunk2[511 - 8*32 : 480 - 8*32];	//[255 : 224]
+                    w_chunk2[9]  <= chunk2[511 - 9*32 : 480 - 9*32];	//[223 : 192]
+                    w_chunk2[10] <= chunk2[511 - 10*32: 480 - 10*32];	//[191 : 160]
+                    w_chunk2[11] <= chunk2[511 - 11*32: 480 - 11*32];	//[159 : 128]
+                    w_chunk2[12] <= chunk2[511 - 12*32: 480 - 12*32];	//[127 : 96]
+                    w_chunk2[13] <= chunk2[511 - 13*32: 480 - 13*32];	//[95  : 64]
+                    w_chunk2[14] <= chunk2[511 - 14*32: 480 - 14*32];	//[63  : 32]
+                    w_chunk2[15] <= chunk2[511 - 15*32: 480 - 15*32];	//[31  : 0]
+                end
+                
                 state <= w_chunk_extend;
-                
-            end
-        end
-
-        //can i group chunk 1 and chunk 2 into 1 case statement to reduce the amount of code
-		main_loop_chunks: begin
-			if (main_loop_counter == 64) begin
-				h0 <= h0 + a_temp;
-				h1 <= h1 + b_temp;
-				h2 <= h2 + c_temp;
-				h3 <= h3 + d_temp;
-				h4 <= h4 + e_temp;
-				h5 <= h5 + f_temp;
-				h6 <= h6 + g_temp;
-				h7 <= h7 + h_temp;
-
-                main_loop_counter <= main_loop_counter + 1;                 
-                
-                if (chunk_flag || second_hash) begin //scenario where a second chunk does not need to be processed
-                    main_loop_counter <= 0;
-                    state <= main_loop_complete;
-                end
-			end
-
-            if (main_loop_counter == 65) begin 
-                a_temp <= h0;
-                b_temp <= h1;
-                c_temp <= h2;
-                d_temp <= h3;
-                e_temp <= h4;
-                f_temp <= h5;
-                g_temp <= h6;
-                h_temp <= h7;
-
-                chunk_flag <= 1; 
-
-                main_loop_counter <= 0;                    
             end
 
-            if (main_loop_counter !== 64 && main_loop_counter !== 65) begin //splitting this into 3 solved my issues but it looks like from the github example one of these can be changed to combinatorial logic
-                case (main_loop_state)
-                    default: begin
-                        main_loop_state <= main_loop_variables;
-                    end
+            w_chunk_extend: begin            	
 
-                    main_loop_variables: begin
-                        //main loop
-                        s1 <= ({e_temp[5:0], e_temp[31:6]}) ^ ({e_temp[10:0], e_temp[31:11]}) ^ ({e_temp[24:0], e_temp[31:25]}); //right rotate 6, right rotate 11, right rotate 25
-                        ch <= (e_temp & f_temp) ^ (~e_temp & g_temp);
-
-                        s0 <= ({a_temp[1:0], a_temp[31:2]}) ^ ({a_temp[12:0], a_temp[31:13]}) ^ ({a_temp[21:0], a_temp[31:22]}); //right rotate 2, right rotate 13, right rotate 22
-                        maj <= (a_temp & b_temp) ^ (a_temp & c_temp) ^ (b_temp & c_temp);
-
-                        main_loop_state <= main_loop_temp;
-                    end
-
-                    main_loop_temp: begin     
-                        if (!chunk_flag) begin
-                            temp1 <= h_temp + s1 + ch + k[main_loop_counter] + w_chunk1[main_loop_counter]; //only difference between chunk 1 and 2 should be the w variable                
-                        end
-                        
-                        else begin
-                            temp1 <= h_temp + s1 + ch + k[main_loop_counter] + w_chunk2[main_loop_counter]; //only difference between chunk 1 and 2 should be the w variable                
-                        end
-                        
-                        temp2 <= s0 + maj;	
-                        
-                        main_loop_state <= main_loop_assign;
-                    end
+                //this would save a clock cycle since putting it in the main_loop_counter section would mean you need to wait a cycle
+                if (extend_counter == 64) begin 
+                    a_temp <= h0;
+                    b_temp <= h1;
+                    c_temp <= h2;
+                    d_temp <= h3;
+                    e_temp <= h4;
+                    f_temp <= h5;
+                    g_temp <= h6;
+                    h_temp <= h7;
                     
-                    main_loop_assign: begin
-                        h_temp <= g_temp;
-                        g_temp <= f_temp;
-                        f_temp <= e_temp;
-                        e_temp <= d_temp + temp1;
-                        d_temp <= c_temp;
-                        c_temp <= b_temp;
-                        b_temp <= a_temp;
-                        a_temp <= temp1 + temp2;
+                    extend_counter <= 16;
 
-                        main_loop_counter <= main_loop_counter + 1;
-
-                        main_loop_state <= main_loop_variables;
+                    state <= main_loop_chunks;
+                end
+                
+                if (extend_counter !== 64) begin 
+                    extend_counter <= extend_counter + 1;
+                    
+                    //chunk 1                
+                    w_chunk1[extend_counter] <= w_chunk1[extend_counter-16] + s0_1 + w_chunk1[extend_counter-7] + s1_1; 
+                    
+                    //chunk 2
+                    if (!second_hash) begin
+                        w_chunk2[extend_counter] <= w_chunk2[extend_counter-16] + s0_2 + w_chunk2[extend_counter-7] + s1_2;
                     end
-                endcase
 
-                state <= main_loop_chunks;
-            end
-        end
-		
-		main_loop_complete: begin
-			hash <= {h0, h1, h2, h3, h4, h5, h6, h7};
-            hash_complete <= 1;
-            chunk_flag <= 0;
-
-            if (second_hash) begin
-                hash_complete <= 1;
+                    state <= w_chunk_extend;
+                    
+                end
             end
 
-            else begin
-                state <= idle_state;
+            //can i group chunk 1 and chunk 2 into 1 case statement to reduce the amount of code
+            main_loop_chunks: begin
+                if (main_loop_counter == 64) begin
+                    h0 <= h0 + a_temp;
+                    h1 <= h1 + b_temp;
+                    h2 <= h2 + c_temp;
+                    h3 <= h3 + d_temp;
+                    h4 <= h4 + e_temp;
+                    h5 <= h5 + f_temp;
+                    h6 <= h6 + g_temp;
+                    h7 <= h7 + h_temp;
+
+                    main_loop_counter <= main_loop_counter + 1;                 
+                    
+                    if (chunk_flag || second_hash) begin //scenario where a second chunk does not need to be processed
+                        main_loop_counter <= 0;
+                        state <= main_loop_complete;
+                    end
+                end
+
+                if (main_loop_counter == 65) begin 
+                    a_temp <= h0;
+                    b_temp <= h1;
+                    c_temp <= h2;
+                    d_temp <= h3;
+                    e_temp <= h4;
+                    f_temp <= h5;
+                    g_temp <= h6;
+                    h_temp <= h7;
+
+                    chunk_flag <= 1; 
+
+                    main_loop_counter <= 0;                    
+                end
+
+                if (main_loop_counter !== 64 && main_loop_counter !== 65) begin //splitting this into 3 solved my issues but it looks like from the github example one of these can be changed to combinatorial logic
+                    case (main_loop_state)
+                        default: begin
+                            main_loop_state <= main_loop_variables;
+                        end
+
+                        main_loop_variables: begin
+                            //main loop
+                            s1 <= ({e_temp[5:0], e_temp[31:6]}) ^ ({e_temp[10:0], e_temp[31:11]}) ^ ({e_temp[24:0], e_temp[31:25]}); //right rotate 6, right rotate 11, right rotate 25
+                            ch <= (e_temp & f_temp) ^ (~e_temp & g_temp);
+
+                            s0 <= ({a_temp[1:0], a_temp[31:2]}) ^ ({a_temp[12:0], a_temp[31:13]}) ^ ({a_temp[21:0], a_temp[31:22]}); //right rotate 2, right rotate 13, right rotate 22
+                            maj <= (a_temp & b_temp) ^ (a_temp & c_temp) ^ (b_temp & c_temp);
+
+                            main_loop_state <= main_loop_temp;
+                        end
+
+                        main_loop_temp: begin     
+                            if (!chunk_flag) begin
+                                temp1 <= h_temp + s1 + ch + k[main_loop_counter] + w_chunk1[main_loop_counter]; //only difference between chunk 1 and 2 should be the w variable                
+                            end
+                            
+                            else begin
+                                temp1 <= h_temp + s1 + ch + k[main_loop_counter] + w_chunk2[main_loop_counter]; //only difference between chunk 1 and 2 should be the w variable                
+                            end
+                            
+                            temp2 <= s0 + maj;	
+                            
+                            main_loop_state <= main_loop_assign;
+                        end
+                        
+                        main_loop_assign: begin
+                            h_temp <= g_temp;
+                            g_temp <= f_temp;
+                            f_temp <= e_temp;
+                            e_temp <= d_temp + temp1;
+                            d_temp <= c_temp;
+                            c_temp <= b_temp;
+                            b_temp <= a_temp;
+                            a_temp <= temp1 + temp2;
+
+                            main_loop_counter <= main_loop_counter + 1;
+
+                            main_loop_state <= main_loop_variables;
+                        end
+                    endcase
+
+                    state <= main_loop_chunks;
+                end
             end
             
-        end
+            main_loop_complete: begin
+                hash <= {h0, h1, h2, h3, h4, h5, h6, h7}; //note that this hash output is not formatted properly so you need to do the (<<byte {) operation if you want to check if this value is less than the target hash 
+                hash_complete <= 1;
+                chunk_flag <= 0;
 
-		endcase
+                // if (second_hash) begin
+                //     hash_complete <= 1;
+                // end
+                // else begin
+                //     state <= idle_state;
+                // end
+                
+            end
+
+            endcase
+        end
 	end
 endmodule
