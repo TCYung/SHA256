@@ -154,6 +154,7 @@ always_comb begin
     s0_1 = ({w_chunk1[extend_counter-15][6:0], w_chunk1[extend_counter-15][31:7]}) ^ ({w_chunk1[extend_counter-15][17:0], w_chunk1[extend_counter-15][31:18]}) ^ (w_chunk1[extend_counter-15] >> 3); //right rotate 7, right rotate 18, right shift 3
     s1_1 = ({w_chunk1[extend_counter-2][16:0], w_chunk1[extend_counter-2][31:17]}) ^ ({w_chunk1[extend_counter-2][18:0], w_chunk1[extend_counter-2][31:19]}) ^ (w_chunk1[extend_counter-2] >> 10); //right rotate 17, right rotate 19, right shift 10
 
+    //second pass only has 256 bits which only needs 1 chunk which means the below code doesnt need to be executed 
     if (!second_hash) begin
         s0_2 = ({w_chunk2[extend_counter-15][6:0], w_chunk2[extend_counter-15][31:7]}) ^ ({w_chunk2[extend_counter-15][17:0], w_chunk2[extend_counter-15][31:18]}) ^ (w_chunk2[extend_counter-15] >> 3); //right rotate 7, right rotate 18, right shift 3
         s1_2 = ({w_chunk2[extend_counter-2][16:0], w_chunk2[extend_counter-2][31:17]}) ^ ({w_chunk2[extend_counter-2][18:0], w_chunk2[extend_counter-2][31:19]}) ^ (w_chunk2[extend_counter-2] >> 10); //right rotate 17, right rotate 19, right shift 10
@@ -167,6 +168,8 @@ always_comb begin
 end
 
 always_ff @(posedge clk) begin 
+
+    //reset for when the nonce is being incremented 
     if (rst) begin
         h0 = 32'h6a09e667;
         h1 = 32'hbb67ae85;
@@ -180,6 +183,7 @@ always_ff @(posedge clk) begin
         hash_complete <= 0;
         state <= idle_state;
     end
+
     else begin
         case(state)	
             default: begin
@@ -193,7 +197,7 @@ always_ff @(posedge clk) begin
                     state <= w_chunk_initial;
                 end
                 
-                if (second_hash && hash_status == 1 && input_hash !== 0) begin //hash status means that the first hash has finished
+                if (second_hash && hash_status == 1 && input_hash !== 0) begin //hash status means that the first hash has finished (dont want the second hash to begin without output from 1st hash)
                     chunk1 <= {input_hash, 1'b1, 191'b0, 64'd256};
                     state <= w_chunk_initial;
                 end            
@@ -239,7 +243,20 @@ always_ff @(posedge clk) begin
                 state <= w_chunk_extend;
             end
 
-            w_chunk_extend: begin            	
+            w_chunk_extend: begin            	               
+                if (extend_counter !== 64) begin 
+                    extend_counter <= extend_counter + 1;
+                    
+                    //chunk 1                
+                    w_chunk1[extend_counter] <= w_chunk1[extend_counter-16] + s0_1 + w_chunk1[extend_counter-7] + s1_1; 
+                    
+                    //chunk 2
+                    if (!second_hash) begin
+                        w_chunk2[extend_counter] <= w_chunk2[extend_counter-16] + s0_2 + w_chunk2[extend_counter-7] + s1_2;
+                    end
+
+                    state <= w_chunk_extend;                    
+                end
 
                 //this would save a clock cycle since putting it in the main_loop_counter section would mean you need to wait a cycle
                 if (extend_counter == 64) begin 
@@ -253,28 +270,60 @@ always_ff @(posedge clk) begin
                     h_temp <= h7;
                     
                     extend_counter <= 16;
-
                     state <= main_loop_chunks;
-                end
-                
-                if (extend_counter !== 64) begin 
-                    extend_counter <= extend_counter + 1;
-                    
-                    //chunk 1                
-                    w_chunk1[extend_counter] <= w_chunk1[extend_counter-16] + s0_1 + w_chunk1[extend_counter-7] + s1_1; 
-                    
-                    //chunk 2
-                    if (!second_hash) begin
-                        w_chunk2[extend_counter] <= w_chunk2[extend_counter-16] + s0_2 + w_chunk2[extend_counter-7] + s1_2;
-                    end
-
-                    state <= w_chunk_extend;
-                    
                 end
             end
 
-            //can i group chunk 1 and chunk 2 into 1 case statement to reduce the amount of code
+            //grouped chunk 1 and chunk 2 into 1 case statement to reduce the amount of code
             main_loop_chunks: begin
+                if (main_loop_counter !== 64 && main_loop_counter !== 65) begin //splitting this into 3 solved my issues 
+                    case (main_loop_state)
+                        default: begin
+                            main_loop_state <= main_loop_variables;
+                        end
+
+                        main_loop_variables: begin //assigns variables that are used in the next 2 sections of code
+                            s1 <= ({e_temp[5:0], e_temp[31:6]}) ^ ({e_temp[10:0], e_temp[31:11]}) ^ ({e_temp[24:0], e_temp[31:25]}); //right rotate 6, right rotate 11, right rotate 25
+                            ch <= (e_temp & f_temp) ^ (~e_temp & g_temp);
+
+                            s0 <= ({a_temp[1:0], a_temp[31:2]}) ^ ({a_temp[12:0], a_temp[31:13]}) ^ ({a_temp[21:0], a_temp[31:22]}); //right rotate 2, right rotate 13, right rotate 22
+                            maj <= (a_temp & b_temp) ^ (a_temp & c_temp) ^ (b_temp & c_temp);
+
+                            main_loop_state <= main_loop_temp;
+                        end
+
+                        main_loop_temp: begin //assigns temporary variables
+                            if (!chunk_flag) begin //chunk flag is only 0 when i am processing the first chunk
+                                temp1 <= h_temp + s1 + ch + k[main_loop_counter] + w_chunk1[main_loop_counter]; //only difference between chunk 1 and 2 should be the w variable                
+                            end
+                            
+                            else begin
+                                temp1 <= h_temp + s1 + ch + k[main_loop_counter] + w_chunk2[main_loop_counter]; //only difference between chunk 1 and 2 should be the w variable                
+                            end
+                            
+                            temp2 <= s0 + maj;	                           
+                            main_loop_state <= main_loop_assign;
+                        end
+                        
+                        main_loop_assign: begin //assign the final values 
+                            h_temp <= g_temp;
+                            g_temp <= f_temp;
+                            f_temp <= e_temp;
+                            e_temp <= d_temp + temp1;
+                            d_temp <= c_temp;
+                            c_temp <= b_temp;
+                            b_temp <= a_temp;
+                            a_temp <= temp1 + temp2;
+
+                            main_loop_counter <= main_loop_counter + 1;
+                            main_loop_state <= main_loop_variables;
+                        end
+                    endcase
+                end
+                
+                //there is probably a better way to write the below code 
+                //maybe another state? once the first chunk is done i set chunk_flag and reset the counter to 0 and main_loop_temp uses chunk2's temporary values
+
                 if (main_loop_counter == 64) begin
                     h0 <= h0 + a_temp;
                     h1 <= h1 + b_temp;
@@ -287,7 +336,7 @@ always_ff @(posedge clk) begin
 
                     main_loop_counter <= main_loop_counter + 1;                 
                     
-                    if (chunk_flag || second_hash) begin //scenario where a second chunk does not need to be processed
+                    if (chunk_flag || second_hash) begin //chunk_flag is when 2 chunks have been processed already (640 bit hash1) ; second_hash is if there is only 1 chunk (256 bit hash2)
                         main_loop_counter <= 0;
                         state <= main_loop_complete;
                     end
@@ -307,56 +356,6 @@ always_ff @(posedge clk) begin
 
                     main_loop_counter <= 0;                    
                 end
-
-                if (main_loop_counter !== 64 && main_loop_counter !== 65) begin //splitting this into 3 solved my issues but it looks like from the github example one of these can be changed to combinatorial logic
-                    case (main_loop_state)
-                        default: begin
-                            main_loop_state <= main_loop_variables;
-                        end
-
-                        main_loop_variables: begin
-                            //main loop
-                            s1 <= ({e_temp[5:0], e_temp[31:6]}) ^ ({e_temp[10:0], e_temp[31:11]}) ^ ({e_temp[24:0], e_temp[31:25]}); //right rotate 6, right rotate 11, right rotate 25
-                            ch <= (e_temp & f_temp) ^ (~e_temp & g_temp);
-
-                            s0 <= ({a_temp[1:0], a_temp[31:2]}) ^ ({a_temp[12:0], a_temp[31:13]}) ^ ({a_temp[21:0], a_temp[31:22]}); //right rotate 2, right rotate 13, right rotate 22
-                            maj <= (a_temp & b_temp) ^ (a_temp & c_temp) ^ (b_temp & c_temp);
-
-                            main_loop_state <= main_loop_temp;
-                        end
-
-                        main_loop_temp: begin     
-                            if (!chunk_flag) begin
-                                temp1 <= h_temp + s1 + ch + k[main_loop_counter] + w_chunk1[main_loop_counter]; //only difference between chunk 1 and 2 should be the w variable                
-                            end
-                            
-                            else begin
-                                temp1 <= h_temp + s1 + ch + k[main_loop_counter] + w_chunk2[main_loop_counter]; //only difference between chunk 1 and 2 should be the w variable                
-                            end
-                            
-                            temp2 <= s0 + maj;	
-                            
-                            main_loop_state <= main_loop_assign;
-                        end
-                        
-                        main_loop_assign: begin
-                            h_temp <= g_temp;
-                            g_temp <= f_temp;
-                            f_temp <= e_temp;
-                            e_temp <= d_temp + temp1;
-                            d_temp <= c_temp;
-                            c_temp <= b_temp;
-                            b_temp <= a_temp;
-                            a_temp <= temp1 + temp2;
-
-                            main_loop_counter <= main_loop_counter + 1;
-
-                            main_loop_state <= main_loop_variables;
-                        end
-                    endcase
-
-                    state <= main_loop_chunks;
-                end
             end
             
             main_loop_complete: begin
@@ -364,15 +363,7 @@ always_ff @(posedge clk) begin
                 hash_complete <= 1;
                 chunk_flag <= 0;
 
-                // if (second_hash) begin
-                //     hash_complete <= 1;
-                // end
-                // else begin
-                //     state <= idle_state;
-                // end
-                
             end
-
             endcase
         end
 	end
