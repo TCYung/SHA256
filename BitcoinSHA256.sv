@@ -13,7 +13,7 @@ module Bitcoin_SHA256
     input rst,
 
     input second_hash, //0 means that its a 640 bit input, 1 means 256 bit input
-    input [255:0] input_hash,
+    input [255:0] input_hash, //isnt used on the 640 bit input, used on the 256 bit input (hash1 is the input_hash)
 
     input [255:0] hash_target, //the resultant hash needs to be less than this value
 
