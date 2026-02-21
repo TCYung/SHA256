@@ -465,10 +465,10 @@ always_ff @(posedge clk) begin
                         main_loop_state <= pipeline1;
                     end
                     
-                    pipeline1: begin 
+                    pipeline1: begin //7 in sim
                         if (!main_loop_flag) begin
                             //hash 1
-                            t11 <= ({e_temp_hash1[5:0], e_temp_hash1[31:6]}) ^ ({e_temp_hash1[10:0], e_temp_hash1[31:11]}) ^ ({e_temp_hash1[24:0], e_temp_hash1[31:25]}) + ((e_temp_hash1 & f_temp_hash1) ^ (~e_temp_hash1 & g_temp_hash1)); //s1 + ch
+                            t11 <= (({e_temp_hash1[5:0], e_temp_hash1[31:6]}) ^ ({e_temp_hash1[10:0], e_temp_hash1[31:11]}) ^ ({e_temp_hash1[24:0], e_temp_hash1[31:25]})) + ((e_temp_hash1 & f_temp_hash1) ^ (~e_temp_hash1 & g_temp_hash1)); //s1 + ch
 
                             if (chunk_flag) begin
                                 t12 <= k[main_loop_counter] + w_chunk2_hash1[main_loop_counter] + h_temp_hash1; //k + w(t) + h(t)
@@ -491,14 +491,14 @@ always_ff @(posedge clk) begin
                         end
                     end
 
-                    pipeline2: begin 
+                    pipeline2: begin //8 in sim
                         //hash 1
                         t1 <= t11 + t12; 
-                        t2 <= ({a_temp_hash1[1:0], a_temp_hash1[31:2]}) ^ ({a_temp_hash1[12:0], a_temp_hash1[31:13]}) ^ ({a_temp_hash1[21:0], a_temp_hash1[31:22]}) + ((a_temp_hash1 & b_temp_hash1) ^ (a_temp_hash1 & c_temp_hash1) ^ (b_temp_hash1 & c_temp_hash1)); //s0 + maj
+                        t2 <= (({a_temp_hash1[1:0], a_temp_hash1[31:2]}) ^ ({a_temp_hash1[12:0], a_temp_hash1[31:13]}) ^ ({a_temp_hash1[21:0], a_temp_hash1[31:22]})) + ((a_temp_hash1 & b_temp_hash1) ^ (a_temp_hash1 & c_temp_hash1) ^ (b_temp_hash1 & c_temp_hash1)); //s0 + maj
                         c_d <= c_temp_hash1;
                         
                         //hash 2
-                        t11 <= ({e_temp_hash2[5:0], e_temp_hash2[31:6]}) ^ ({e_temp_hash2[10:0], e_temp_hash2[31:11]}) ^ ({e_temp_hash2[24:0], e_temp_hash2[31:25]}) + ((e_temp_hash2 & f_temp_hash2) ^ (~e_temp_hash2 & g_temp_hash2)); //s1 + ch                        
+                        t11 <= (({e_temp_hash2[5:0], e_temp_hash2[31:6]}) ^ ({e_temp_hash2[10:0], e_temp_hash2[31:11]}) ^ ({e_temp_hash2[24:0], e_temp_hash2[31:25]})) + ((e_temp_hash2 & f_temp_hash2) ^ (~e_temp_hash2 & g_temp_hash2)); //s1 + ch                        
 
                         if (chunk_flag) begin
                             t12 <= k[main_loop_counter] + w_chunk2_hash2[main_loop_counter] + h_temp_hash2; //k + w(t) + h(t)
@@ -520,7 +520,7 @@ always_ff @(posedge clk) begin
                         main_loop_state <= pipeline3;       
                     end
                     
-                    pipeline3: begin 
+                    pipeline3: begin //9 in sim
 
                         //hash 1
                         e_temp_hash1 <= t1 + d_temp_hash1; //d(n) + t1 = e(t+1) 
@@ -529,11 +529,11 @@ always_ff @(posedge clk) begin
                         
                         //hash 2
                         t1 <= t11 + t12;                             
-                        t2 <= ({a_temp_hash2[1:0], a_temp_hash2[31:2]}) ^ ({a_temp_hash2[12:0], a_temp_hash2[31:13]}) ^ ({a_temp_hash2[21:0], a_temp_hash2[31:22]}) + ((a_temp_hash2 & b_temp_hash2) ^ (a_temp_hash2 & c_temp_hash2) ^ (b_temp_hash2 & c_temp_hash2)); //s0 + maj
+                        t2 <= (({a_temp_hash2[1:0], a_temp_hash2[31:2]}) ^ ({a_temp_hash2[12:0], a_temp_hash2[31:13]}) ^ ({a_temp_hash2[21:0], a_temp_hash2[31:22]})) + ((a_temp_hash2 & b_temp_hash2) ^ (a_temp_hash2 & c_temp_hash2) ^ (b_temp_hash2 & c_temp_hash2)); //s0 + maj
                         c_d <= c_temp_hash2;
 
                         //hash 3
-                        t11 <= ({e_temp_hash3[5:0], e_temp_hash3[31:6]}) ^ ({e_temp_hash3[10:0], e_temp_hash3[31:11]}) ^ ({e_temp_hash3[24:0], e_temp_hash3[31:25]}) + ((e_temp_hash3 & f_temp_hash3) ^ (~e_temp_hash3 & g_temp_hash3)); //s1 + ch
+                        t11 <= (({e_temp_hash3[5:0], e_temp_hash3[31:6]}) ^ ({e_temp_hash3[10:0], e_temp_hash3[31:11]}) ^ ({e_temp_hash3[24:0], e_temp_hash3[31:25]})) + ((e_temp_hash3 & f_temp_hash3) ^ (~e_temp_hash3 & g_temp_hash3)); //s1 + ch
 
                         if (chunk_flag) begin
                             t12 <= k[main_loop_counter] + w_chunk2_hash3[main_loop_counter] + h_temp_hash3; //k + w(t) + h(t)
@@ -557,9 +557,9 @@ always_ff @(posedge clk) begin
                         main_loop_state <= pipeline4;
                     end
 
-                    pipeline4: begin
+                    pipeline4: begin //10 in sim
                         //hash 1
-                        t11 <= ({e_temp_hash1[5:0], e_temp_hash1[31:6]}) ^ ({e_temp_hash1[10:0], e_temp_hash1[31:11]}) ^ ({e_temp_hash1[24:0], e_temp_hash1[31:25]}) + ((e_temp_hash1 & f_temp_hash1) ^ (~e_temp_hash1 & g_temp_hash1)); //s1 + ch
+                        t11 <= (({e_temp_hash1[5:0], e_temp_hash1[31:6]}) ^ ({e_temp_hash1[10:0], e_temp_hash1[31:11]}) ^ ({e_temp_hash1[24:0], e_temp_hash1[31:25]})) + ((e_temp_hash1 & f_temp_hash1) ^ (~e_temp_hash1 & g_temp_hash1)); //s1 + ch
 
                         if (chunk_flag) begin
                             t12 <= k[main_loop_counter] + w_chunk2_hash1[main_loop_counter] + h_temp_hash1; //k + w(t) + h(t)
@@ -575,7 +575,7 @@ always_ff @(posedge clk) begin
 
                         //hash 3
                         t1 <= t11 + t12;                             
-                        t2 <= ({a_temp_hash3[1:0], a_temp_hash3[31:2]}) ^ ({a_temp_hash3[12:0], a_temp_hash3[31:13]}) ^ ({a_temp_hash3[21:0], a_temp_hash3[31:22]}) + ((a_temp_hash3 & b_temp_hash3) ^ (a_temp_hash3 & c_temp_hash3) ^ (b_temp_hash3 & c_temp_hash3)); //s0 + maj
+                        t2 <= (({a_temp_hash3[1:0], a_temp_hash3[31:2]}) ^ ({a_temp_hash3[12:0], a_temp_hash3[31:13]}) ^ ({a_temp_hash3[21:0], a_temp_hash3[31:22]})) + ((a_temp_hash3 & b_temp_hash3) ^ (a_temp_hash3 & c_temp_hash3) ^ (b_temp_hash3 & c_temp_hash3)); //s0 + maj
                         c_d <= c_temp_hash3;
 
                         //variable assignments
@@ -590,14 +590,14 @@ always_ff @(posedge clk) begin
 
                         main_loop_state <= pipeline5;                            
                     end
-                    pipeline5: begin
+                    pipeline5: begin //11 in sim
                         //hash 1
                         t1 <= t11 + t12;                             
-                        t2 <= ({a_temp_hash1[1:0], a_temp_hash1[31:2]}) ^ ({a_temp_hash1[12:0], a_temp_hash1[31:13]}) ^ ({a_temp_hash1[21:0], a_temp_hash1[31:22]}) + ((a_temp_hash1 & b_temp_hash1) ^ (a_temp_hash1 & c_temp_hash1) ^ (b_temp_hash1 & c_temp_hash1)); //s0 + maj
+                        t2 <= (({a_temp_hash1[1:0], a_temp_hash1[31:2]}) ^ ({a_temp_hash1[12:0], a_temp_hash1[31:13]}) ^ ({a_temp_hash1[21:0], a_temp_hash1[31:22]})) + ((a_temp_hash1 & b_temp_hash1) ^ (a_temp_hash1 & c_temp_hash1) ^ (b_temp_hash1 & c_temp_hash1)); //s0 + maj
                         c_d <= c_temp_hash1;
                         
                         //hash 2 
-                        t11 <= ({e_temp_hash2[5:0], e_temp_hash2[31:6]}) ^ ({e_temp_hash2[10:0], e_temp_hash2[31:11]}) ^ ({e_temp_hash2[24:0], e_temp_hash2[31:25]}) + ((e_temp_hash2 & f_temp_hash2) ^ (~e_temp_hash2 & g_temp_hash2)); //s1 + ch
+                        t11 <= (({e_temp_hash2[5:0], e_temp_hash2[31:6]}) ^ ({e_temp_hash2[10:0], e_temp_hash2[31:11]}) ^ ({e_temp_hash2[24:0], e_temp_hash2[31:25]})) + ((e_temp_hash2 & f_temp_hash2) ^ (~e_temp_hash2 & g_temp_hash2)); //s1 + ch
 
                         if (chunk_flag) begin
                             t12 <= k[main_loop_counter] + w_chunk2_hash2[main_loop_counter] + h_temp_hash2; //k + w(t) + h(t)
@@ -623,7 +623,7 @@ always_ff @(posedge clk) begin
                         h_temp_hash2 <= g_temp_hash2;
 
                         //if 64 then ramp down the pipelines, else keep looping                            
-                        if (main_loop_counter == 64) begin
+                        if (main_loop_counter == 63) begin
                             main_loop_state <= pipeline6;
                         end
 
@@ -631,7 +631,7 @@ always_ff @(posedge clk) begin
                             main_loop_state <= pipeline3;
 
                     end
-                    pipeline6: begin                            
+                    pipeline6: begin //12 in sim                           
                         //hash 1
                         e_temp_hash1 <= t1 + d_temp_hash1; //d(n) + t1 = e(t+1) 
                         a_temp_hash1 <= t1 + t2; // t1 + t2 = a(t+1)
@@ -639,11 +639,11 @@ always_ff @(posedge clk) begin
 
                         //hash 2
                         t1 <= t11 + t12;                             
-                        t2 <= ({a_temp_hash2[1:0], a_temp_hash2[31:2]}) ^ ({a_temp_hash2[12:0], a_temp_hash2[31:13]}) ^ ({a_temp_hash2[21:0], a_temp_hash2[31:22]}) + ((a_temp_hash2 & b_temp_hash2) ^ (a_temp_hash2 & c_temp_hash2) ^ (b_temp_hash2 & c_temp_hash2)); //s0 + maj
+                        t2 <= (({a_temp_hash2[1:0], a_temp_hash2[31:2]}) ^ ({a_temp_hash2[12:0], a_temp_hash2[31:13]}) ^ ({a_temp_hash2[21:0], a_temp_hash2[31:22]})) + ((a_temp_hash2 & b_temp_hash2) ^ (a_temp_hash2 & c_temp_hash2) ^ (b_temp_hash2 & c_temp_hash2)); //s0 + maj
                         c_d <= c_temp_hash2;
 
                         //hash 3
-                        t11 <= ({e_temp_hash3[5:0], e_temp_hash3[31:6]}) ^ ({e_temp_hash3[10:0], e_temp_hash3[31:11]}) ^ ({e_temp_hash3[24:0], e_temp_hash3[31:25]}) + ((e_temp_hash3 & f_temp_hash3) ^ (~e_temp_hash3 & g_temp_hash3)); //s1 + ch
+                        t11 <= (({e_temp_hash3[5:0], e_temp_hash3[31:6]}) ^ ({e_temp_hash3[10:0], e_temp_hash3[31:11]}) ^ ({e_temp_hash3[24:0], e_temp_hash3[31:25]})) + ((e_temp_hash3 & f_temp_hash3) ^ (~e_temp_hash3 & g_temp_hash3)); //s1 + ch
 
                         if (chunk_flag) begin
                             t12 <= k[main_loop_counter] + w_chunk2_hash3[main_loop_counter] + h_temp_hash3; //k + w(t) + h(t)
@@ -665,7 +665,7 @@ always_ff @(posedge clk) begin
                         main_loop_state <= pipeline7;
 
                     end
-                    pipeline7: begin
+                    pipeline7: begin //13 in sim
                         //final assignment for hash 1
                         h0_hash1 <= h0_hash1 + a_temp_hash1;
                         h1_hash1 <= h1_hash1 + b_temp_hash1;
@@ -683,7 +683,7 @@ always_ff @(posedge clk) begin
 
                         //hash 3
                         t1 <= t11 + t12;                             
-                        t2 <= ({a_temp_hash3[1:0], a_temp_hash3[31:2]}) ^ ({a_temp_hash3[12:0], a_temp_hash3[31:13]}) ^ ({a_temp_hash3[21:0], a_temp_hash3[31:22]}) + ((a_temp_hash3 & b_temp_hash3) ^ (a_temp_hash3 & c_temp_hash3) ^ (b_temp_hash3 & c_temp_hash3)); //s0 + maj
+                        t2 <= (({a_temp_hash3[1:0], a_temp_hash3[31:2]}) ^ ({a_temp_hash3[12:0], a_temp_hash3[31:13]}) ^ ({a_temp_hash3[21:0], a_temp_hash3[31:22]})) + ((a_temp_hash3 & b_temp_hash3) ^ (a_temp_hash3 & c_temp_hash3) ^ (b_temp_hash3 & c_temp_hash3)); //s0 + maj
                         c_d <= c_temp_hash3;
 
                         //variable assignments
@@ -695,7 +695,7 @@ always_ff @(posedge clk) begin
                         main_loop_state <= pipeline8;
 
                     end
-                    pipeline8: begin
+                    pipeline8: begin //14 in sim
                         //final assignment for hash 2 
                         h0_hash2 <= h0_hash2 + a_temp_hash2;
                         h1_hash2 <= h1_hash2 + b_temp_hash2;
@@ -711,10 +711,10 @@ always_ff @(posedge clk) begin
                         a_temp_hash3 <= t1 + t2; // t1 + t2 = a(t+1)
                         d_temp_hash3 <= c_d; //d(t+1)
 
-                        main_loop_state <= pipeline1;
+                        main_loop_state <= pipeline9;
 
                     end
-                    pipeline9: begin
+                    pipeline9: begin //15 in sim
                         //final assignment for hash 2 
                         h0_hash3 <= h0_hash3 + a_temp_hash3;
                         h1_hash3 <= h1_hash3 + b_temp_hash3;

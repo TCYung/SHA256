@@ -15,11 +15,49 @@ module I2C_TB;
     reg [255:0] hash_reset = 0; //this needs to be renamed in a bit, its the input hash for the initial_hashing, i think that its jumping the gun because its a non-zero value one the 2nd pass 
     //above is not true, the first hash that gets passed from .hash from initial hashing is causing final hasing to go right after the rst
 
-    reg [31:0] nonce = 32'd396525939; //396525940 is the correct nonce to get the hash, but when i change this to be 1 less it doesnt give the correct value like i expect on the 2nd pass, this means that the reset is not working properly
+    reg [31:0] nonce = 32'd396525939; //396525940 is the correct nonce to get the hash
 
     clock_gen testclk1 (clk);
 
-    Bitcoin_SHA256 initial_hashing  (
+    Pipelined_Bitcoin_SHA256 initial_hashing  (
+        .clk (clk),
+        .second_hash(1'b0),
+        .input_hash1(hash_reset),
+        .input_hash2(hash_reset),
+        .input_hash3(hash_reset),
+        .hash_status(1'b0),
+        .hash_complete(initial_hash_complete),
+        .hash1(first_hash),
+        .hash2(first_hash),
+        .hash3(first_hash),
+
+        .nonce(nonce),
+
+        .rst(rst),
+        .hash_target(255'd0) //isnt used for the first hash
+    );
+
+    Pipelined_Bitcoin_SHA256 final_hashing  (
+        .clk (clk),
+        .second_hash(1'b1),
+
+        .input_hash1(first_hash),
+        .input_hash2(first_hash),
+        .input_hash3(first_hash),
+        
+        .hash_status(initial_hash_complete),
+        .hash_complete(final_hash_complete),
+        .hash1(final_hash),
+        .hash2(final_hash),
+        .hash3(final_hash),
+
+        .nonce(nonce),
+        
+        .rst(rst),
+        .hash_target(hash_target)
+   );
+
+    Bitcoin_SHA256 initial_hashing_test  (
         .clk (clk),
         .second_hash(1'b0),
         .input_hash(hash_reset),
@@ -33,7 +71,7 @@ module I2C_TB;
         .hash_target(255'd0) //isnt used for the first hash
     );
 
-   Bitcoin_SHA256 final_hashing  (
+   Bitcoin_SHA256 final_hashing_test  (
         .clk (clk),
         .second_hash(1'b1),
         .input_hash(first_hash),
