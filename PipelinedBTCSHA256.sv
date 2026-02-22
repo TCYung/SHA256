@@ -15,7 +15,7 @@ module Pipelined_Bitcoin_SHA256
 
     input hash_status,
     output reg hash_complete,
-    output reg [255:0] hash1, hash2, hash3 = 256'd0
+    output reg [255:0] hash1, hash2, hash3
     
 );
 
@@ -57,10 +57,18 @@ reg [31:0] k [0:63];
 reg [31:0] bitcoin_version =  {<<byte {32'h3fff0000}};
 reg [255:0] previous_hash = {<<byte {256'h00000000000000000000a94278b1c645a52dfc46bf6f985010f5626093b0eb9f}}; //this is the hash of block 923947
 reg [255:0] merkle_root = {<<byte {256'h8d6f9f82908f4e916af2eb57010de762f46ea5923374898033b0599acf6c8bc0}};
-reg [31:0] timestamp = {<<byte {32'h691A4FD1}}; //1763332049 or 11/16/25 5:27:29 pm 
-reg [31:0] difficulty = {<<byte {32'h1701d936}};
+reg [31:0] timestamp = {<<byte {32'h691A4FD1}}; 
+reg [31:0] difficulty = {<<byte {32'd385997110}};
 
 //reg [31:0] nonce = {<<byte {32'h7481a217}}; // 1954652695 in decimal
+
+// block 937852 (for testing)
+// reg [31:0] bitcoin_version =  {<<byte {32'h22c9a000}};
+// reg [255:0] previous_hash = {<<byte {256'h00000000000000000000bfe45a95a7e7b0c955de787fc8d2026bdb91a0fc2915}}; //this is the hash of block 937851
+// reg [255:0] merkle_root = {<<byte {256'h707af9794c1786fc5ff15cf1919eb6a9123626da869975d8eb3df960a0eb22c1}};
+// reg [31:0] timestamp = {<<byte {32'd1771783753}}; //feb 22 26 1:09:13pm
+// reg [31:0] difficulty = {<<byte {32'd386003715}};
+
 
 reg [63:0] length_bits = 64'd640; //640 is the length of the bitcoin block header
 
@@ -275,10 +283,10 @@ always_ff @(posedge clk) begin
                     chunk2_hash1 <= {merkle_root[31:0], timestamp, difficulty, nonce, 1'b1, 319'b0, length_bits};
 
                     chunk1_hash2 <= {bitcoin_version, previous_hash, merkle_root[255:32]};
-                    chunk2_hash2 <= {merkle_root[31:0], timestamp, difficulty, nonce, 1'b1, 319'b0, length_bits};
+                    chunk2_hash2 <= {merkle_root[31:0], timestamp, difficulty, nonce + 1, 1'b1, 319'b0, length_bits};
 
                     chunk1_hash3 <= {bitcoin_version, previous_hash, merkle_root[255:32]};
-                    chunk2_hash3 <= {merkle_root[31:0], timestamp, difficulty, nonce, 1'b1, 319'b0, length_bits};
+                    chunk2_hash3 <= {merkle_root[31:0], timestamp, difficulty, nonce + 2, 1'b1, 319'b0, length_bits};
                     state <= w_chunk_initial;
                 end
                 

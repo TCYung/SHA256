@@ -1,20 +1,37 @@
 
 module I2C_TB; 
 
-    wire [255:0] first_hash;
+    wire [255:0] first_hash1;
+    wire [255:0] first_hash2;
+    wire [255:0] first_hash3;
+
     wire initial_hash_complete;
     wire final_hash_complete;
-    wire [255:0] final_hash;
-    reg [255:0] formatted_final_hash;
+
+    wire [255:0] final_hash1;
+    wire [255:0] final_hash2;
+    wire [255:0] final_hash3;
+
+    reg [255:0] formatted_final_hash1;
+    reg [255:0] formatted_final_hash2;
+    reg [255:0] formatted_final_hash3;
+
     wire [255:0] hash_target;
 
     reg rst = 0;
     reg hash_complete_flag = 0;
-    reg valid_hash_found = 0;
+    reg [1:0] valid_hash_found = 0;
 
     reg [255:0] hash_reset = 0; //this needs to be renamed in a bit, its the input hash for the initial_hashing, i think that its jumping the gun because its a non-zero value one the 2nd pass 
     //above is not true, the first hash that gets passed from .hash from initial hashing is causing final hasing to go right after the rst
 
+    //note that the value below is not the same as the decimal value on the bitcoin block detail websites
+    //this is because it is encoded as little endian
+
+    //nonce for block 937852
+    //reg [31:0] nonce = 32'h531220ed; 
+
+    //nonce for block 923947
     reg [31:0] nonce = 32'd396525939; //396525940 is the correct nonce to get the hash
 
     clock_gen testclk1 (clk);
@@ -27,29 +44,29 @@ module I2C_TB;
         .input_hash3(hash_reset),
         .hash_status(1'b0),
         .hash_complete(initial_hash_complete),
-        .hash1(first_hash),
-        .hash2(first_hash),
-        .hash3(first_hash),
+        .hash1(first_hash1),
+        .hash2(first_hash2),
+        .hash3(first_hash3),
 
         .nonce(nonce),
 
         .rst(rst),
-        .hash_target(255'd0) //isnt used for the first hash
+        .hash_target(256'd0) //isnt used for the first hash
     );
 
     Pipelined_Bitcoin_SHA256 final_hashing  (
         .clk (clk),
         .second_hash(1'b1),
 
-        .input_hash1(first_hash),
-        .input_hash2(first_hash),
-        .input_hash3(first_hash),
+        .input_hash1(first_hash1),
+        .input_hash2(first_hash2),
+        .input_hash3(first_hash3),
         
         .hash_status(initial_hash_complete),
         .hash_complete(final_hash_complete),
-        .hash1(final_hash),
-        .hash2(final_hash),
-        .hash3(final_hash),
+        .hash1(final_hash1),
+        .hash2(final_hash2),
+        .hash3(final_hash3),
 
         .nonce(nonce),
         
@@ -57,45 +74,54 @@ module I2C_TB;
         .hash_target(hash_target)
    );
 
-    Bitcoin_SHA256 initial_hashing_test  (
-        .clk (clk),
-        .second_hash(1'b0),
-        .input_hash(hash_reset),
-        .hash_status(1'b0),
-        .hash_complete(initial_hash_complete),
-        .hash(first_hash),
+//     Bitcoin_SHA256 initial_hashing_test  (
+//         .clk (clk),
+//         .second_hash(1'b0),
+//         .input_hash(hash_reset),
+//         .hash_status(1'b0),
+//         .hash_complete(initial_hash_complete),
+//         .hash(first_hash),
 
-        .nonce(nonce),
+//         .nonce(nonce),
 
-        .rst(rst),
-        .hash_target(255'd0) //isnt used for the first hash
-    );
+//         .rst(rst),
+//         .hash_target(255'd0) //isnt used for the first hash
+//     );
 
-   Bitcoin_SHA256 final_hashing_test  (
-        .clk (clk),
-        .second_hash(1'b1),
-        .input_hash(first_hash),
-        .hash_status(initial_hash_complete),
-        .hash_complete(final_hash_complete),
-        .hash(final_hash),
+//    Bitcoin_SHA256 final_hashing_test  (
+//         .clk (clk),
+//         .second_hash(1'b1),
+//         .input_hash(first_hash),
+//         .hash_status(initial_hash_complete),
+//         .hash_complete(final_hash_complete),
+//         .hash(final_hash),
 
-        .nonce(nonce),
+//         .nonce(nonce),
         
-        .rst(rst),
-        .hash_target(hash_target)
-   );
+//         .rst(rst),
+//         .hash_target(hash_target)
+//    );
 
     targetchecker target_checker (
         .clk(clk),
-        .difficulty(32'h1701d936), //will probably need to create a module here later on to grab difficulty from bitcoin API
+        .difficulty(32'd385997110), //will probably need to create a module here later on to grab difficulty from bitcoin API
+        //.difficulty(32'd386003715),
         .hash_target(hash_target)
     
     );
 
     //do something here to choose when to reset the program
     always @(posedge clk) begin
-        if (formatted_final_hash < hash_target && final_hash_complete) begin
-            valid_hash_found <= 1;
+        if (formatted_final_hash1 < hash_target && final_hash_complete) begin
+            valid_hash_found <= 2'b01;
+        end
+
+        else if (formatted_final_hash2 < hash_target && final_hash_complete) begin
+            valid_hash_found <= 2'b10;
+        end
+
+        else if (formatted_final_hash3 < hash_target && final_hash_complete) begin
+            valid_hash_found <= 2'b11;
         end
 
         else begin
@@ -114,7 +140,9 @@ module I2C_TB;
     end
 
     always @(*) begin
-        assign formatted_final_hash = {<<8 {final_hash}};
+        assign formatted_final_hash1 = {<<8 {final_hash1}};
+        assign formatted_final_hash2 = {<<8 {final_hash2}};
+        assign formatted_final_hash3 = {<<8 {final_hash3}};
     end
 
 endmodule
@@ -130,4 +158,3 @@ module clock_gen (output reg clk);
     end
 endmodule
 
-//sounds like i need to have a reset signal so that every time a nonce fails i reset the values of the hashing algorithm
