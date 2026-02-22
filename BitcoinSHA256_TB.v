@@ -1,5 +1,5 @@
 
-module I2C_TB; 
+module BTC_TB; 
 
     wire [255:0] first_hash1;
     wire [255:0] first_hash2;
