@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="I2C_TB_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="I2C_TB" />
+            <top_module name="glbl" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="0.000 ns"></ZoomStartTime>
+      <ZoomEndTime time="2,376.001 ns"></ZoomEndTime>
+      <Cursor1Time time="596.000 ns"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="264"></NameColumnWidth>
+      <ValueColumnWidth column_width="219"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="20" />
+   <wvobject fp_name="/I2C_TB/clk" type="logic">
+      <obj_property name="ElementShortName">clk</obj_property>
+      <obj_property name="ObjectShortName">clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/initial_hash_complete" type="logic">
+      <obj_property name="ElementShortName">initial_hash_complete</obj_property>
+      <obj_property name="ObjectShortName">initial_hash_complete</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/final_hash_complete" type="logic">
+      <obj_property name="ElementShortName">final_hash_complete</obj_property>
+      <obj_property name="ObjectShortName">final_hash_complete</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/initial_hashing/state" type="array">
+      <obj_property name="ElementShortName">state[7:0]</obj_property>
+      <obj_property name="ObjectShortName">state[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/initial_hashing/main_loop_state" type="array">
+      <obj_property name="ElementShortName">main_loop_state[7:0]</obj_property>
+      <obj_property name="ObjectShortName">main_loop_state[7:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/initial_hashing/main_loop_counter" type="array">
+      <obj_property name="ElementShortName">main_loop_counter[8:0]</obj_property>
+      <obj_property name="ObjectShortName">main_loop_counter[8:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/initial_hashing/chunk_flag" type="logic">
+      <obj_property name="ElementShortName">chunk_flag</obj_property>
+      <obj_property name="ObjectShortName">chunk_flag</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/initial_hashing/second_hash" type="logic">
+      <obj_property name="ElementShortName">second_hash</obj_property>
+      <obj_property name="ObjectShortName">second_hash</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/rst" type="logic">
+      <obj_property name="ElementShortName">rst</obj_property>
+      <obj_property name="ObjectShortName">rst</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/hash_complete_flag" type="logic">
+      <obj_property name="ElementShortName">hash_complete_flag</obj_property>
+      <obj_property name="ObjectShortName">hash_complete_flag</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/valid_hash_found" type="array">
+      <obj_property name="ElementShortName">valid_hash_found[1:0]</obj_property>
+      <obj_property name="ObjectShortName">valid_hash_found[1:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/final_hash_complete" type="logic">
+      <obj_property name="ElementShortName">final_hash_complete</obj_property>
+      <obj_property name="ObjectShortName">final_hash_complete</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/hash_target" type="array">
+      <obj_property name="ElementShortName">hash_target[255:0]</obj_property>
+      <obj_property name="ObjectShortName">hash_target[255:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/initial_hashing/hash1" type="array">
+      <obj_property name="ElementShortName">hash1[255:0]</obj_property>
+      <obj_property name="ObjectShortName">hash1[255:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/initial_hashing/hash2" type="array">
+      <obj_property name="ElementShortName">hash2[255:0]</obj_property>
+      <obj_property name="ObjectShortName">hash2[255:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/initial_hashing/hash3" type="array">
+      <obj_property name="ElementShortName">hash3[255:0]</obj_property>
+      <obj_property name="ObjectShortName">hash3[255:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/formatted_final_hash1" type="array">
+      <obj_property name="ElementShortName">formatted_final_hash1[255:0]</obj_property>
+      <obj_property name="ObjectShortName">formatted_final_hash1[255:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/formatted_final_hash2" type="array">
+      <obj_property name="ElementShortName">formatted_final_hash2[255:0]</obj_property>
+      <obj_property name="ObjectShortName">formatted_final_hash2[255:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/formatted_final_hash3" type="array">
+      <obj_property name="ElementShortName">formatted_final_hash3[255:0]</obj_property>
+      <obj_property name="ObjectShortName">formatted_final_hash3[255:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/I2C_TB/nonce" type="array">
+      <obj_property name="ElementShortName">nonce[31:0]</obj_property>
+      <obj_property name="ObjectShortName">nonce[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+</wave_config>
