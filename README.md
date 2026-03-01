@@ -1,4 +1,4 @@
-## Project was done to learn about Bitcoin's PoW and how hash rate can be increased. 
+## Project to learn about Bitcoin's PoW and how hash rate can be increased 
 
 ControlTestSV - Converts 640 bit input into 256 bit SHA256 hash
 
